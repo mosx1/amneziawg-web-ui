@@ -193,6 +193,7 @@ Official docker image repository: https://hub.docker.com/r/alexishw/amneziawg-we
 | `DEFAULT_SUBNET` | `10.0.0.0/24` | Default subnet for new servers. Effective only for api requests. For UI management set via UI. |
 | `DEFAULT_PORT` | `51820` | Default port for new servers. Effective only for api requests. For UI management set via UI. |
 | `DEFAULT_DNS` | `8.8.8.8,1.1.1.1` | Default DNS servers for clients. Effective only for api requests. For UI management set via UI. |
+| `PUBLIC_ENDPOINT` | `-` | Public server endpoint used in generated client configs (`Endpoint = ...`). Can be an IPv4 address or DNS name. If not set, app auto-detects IP. |
 | `SSL_EMAIL` | `-` | Email used to register Let's encrypt account
 | `SSL_DOMAIN` | `-` | Domain used for SSL cert generation by certbot
 | `IP_LIST` | `-` | A list of IP addresses or IP ranges to allow connections from.
@@ -213,6 +214,7 @@ services:
       - NGINX_PORT=8080
       - AUTO_START_SERVERS=true
       - DEFAULT_MTU=1280
+      - PUBLIC_ENDPOINT=vpn.example.com
     volumes:
       - amnezia-data:/etc/amnezia
     cap_add:
@@ -252,6 +254,7 @@ docker run -d \
   -e DEFAULT_SUBNET=10.8.0.0/24 \
   -e DEFAULT_PORT=51821 \
   -e DEFAULT_DNS="8.8.8.8,8.8.4.4" \
+  -e PUBLIC_ENDPOINT="vpn.example.com" \
   -e SSL_EMAIL="your@email.com" \
   -e SSL_DOMAIN="your.domain.com" \
   -v amnezia-data:/etc/amnezia \

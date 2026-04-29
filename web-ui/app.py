@@ -46,6 +46,7 @@ DEFAULT_MTU = int(os.getenv('DEFAULT_MTU', '1280'))
 DEFAULT_SUBNET = os.getenv('DEFAULT_SUBNET', '10.0.0.0/24')
 DEFAULT_PORT = int(os.getenv('DEFAULT_PORT', '51820'))
 DEFAULT_DNS = os.getenv('DEFAULT_DNS', '8.8.8.8,1.1.1.1')
+PUBLIC_ENDPOINT = os.getenv('PUBLIC_ENDPOINT', '').strip()
 
 # Parse DNS servers from comma-separated string
 DNS_SERVERS = [dns.strip() for dns in DEFAULT_DNS.split(',') if dns.strip()]
@@ -75,6 +76,7 @@ print(f"DEFAULT_MTU: {DEFAULT_MTU}")
 print(f"DEFAULT_SUBNET: {DEFAULT_SUBNET}")
 print(f"DEFAULT_PORT: {DEFAULT_PORT}")
 print(f"DEFAULT_DNS: {DEFAULT_DNS}")
+print(f"PUBLIC_ENDPOINT: {PUBLIC_ENDPOINT if PUBLIC_ENDPOINT else '<auto-detect>'}")
 print(f"DNS_SERVERS: {DNS_SERVERS}")
 print("==================================")
 print("Fixed Configuration:")
@@ -112,6 +114,11 @@ class AmneziaManager:
         self.config = self.load_config()
         self.ensure_directories()
         self.public_ip = self.detect_public_ip()
+        # Keep existing servers aligned with explicit endpoint from env.
+        if PUBLIC_ENDPOINT:
+            for server in self.config["servers"]:
+                server["public_ip"] = self.public_ip
+            self.save_config()
         self.traffic_update_interval = 5  # Update every 5 seconds
 
         # Auto-start servers based on environment variable
@@ -128,7 +135,13 @@ class AmneziaManager:
         os.makedirs('/var/log/amnezia', exist_ok=True)
 
     def detect_public_ip(self):
-        """Detect the public IP address of the server"""
+        """Detect the server endpoint (IP or DNS name)."""
+        if PUBLIC_ENDPOINT:
+            if self.is_valid_host(PUBLIC_ENDPOINT):
+                print(f"Using PUBLIC_ENDPOINT from env: {PUBLIC_ENDPOINT}")
+                return PUBLIC_ENDPOINT
+            print(f"Invalid PUBLIC_ENDPOINT value: {PUBLIC_ENDPOINT}, falling back to auto-detect")
+
         try:
             # Try multiple services in case one fails
             services = [
@@ -161,6 +174,25 @@ class AmneziaManager:
             print(f"Failed to detect public IP: {e}")
 
         return "YOUR_SERVER_IP"  # Fallback
+
+    def is_valid_host(self, host):
+        """Check if host is a valid IPv4 address or DNS hostname."""
+        if self.is_valid_ip(host):
+            return True
+        if len(host) > 253:
+            return False
+        if host.startswith('.') or host.endswith('.'):
+            return False
+
+        labels = host.split('.')
+        for label in labels:
+            if not label or len(label) > 63:
+                return False
+            if label.startswith('-') or label.endswith('-'):
+                return False
+            if not all(ch.isalnum() or ch == '-' for ch in label):
+                return False
+        return True
 
     def is_valid_ip(self, ip):
         """Check if the string is a valid IP address"""
@@ -1331,7 +1363,8 @@ def system_status():
             "default_mtu": DEFAULT_MTU,
             "default_subnet": DEFAULT_SUBNET,
             "default_port": DEFAULT_PORT,
-            "default_dns": DEFAULT_DNS
+            "default_dns": DEFAULT_DNS,
+            "public_endpoint": PUBLIC_ENDPOINT if PUBLIC_ENDPOINT else None
         }
     }
     return jsonify(status)
